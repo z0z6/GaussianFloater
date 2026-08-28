@@ -37,7 +37,6 @@ float noise(vec2 st) {
 }
 
 // Kształty
-
 float shapeCircle(vec2 uv) {
   float d = length(uv - 0.5);
   return smoothstep(0.26, 0.24, d);
@@ -79,7 +78,8 @@ void main() {
 
   if (u_useImage) {
     vec4 imgColor = texture2D(u_image, rotatedUV);
-    color = imgColor.rgb * u_color;
+    // NAPRAWA: Obraz zachowuje oryginalne kolory, bez mnożenia przez u_color
+    color = imgColor.rgb; 
   } else {
     float s = getShape(rotatedUV);
     color = u_color * s;
