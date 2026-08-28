@@ -6,19 +6,36 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">GF</span>
+      <span class="title">Gaussian Floater</span>
+    </div>
+    <div class="actions">
+      <button id="savePresetBtn">Zapisz preset</button>
+      <button id="loadPresetBtn">Wczytaj preset</button>
+      <button id="resetDefaultsBtn">Reset do domyślnych</button>
+    </div>
+  </header>
+
   <div class="app">
-    <!-- Panel boczny: galerie + ustawienia -->
     <aside class="sidebar">
       <section class="panel">
         <h2>Galeria obrazów</h2>
 
         <div class="control-group">
-          <label for="imageFolder">Wybierz folder z grafikami</label>
-          <input type="file" id="imageFolder" webkitdirectory directory multiple />
+          <label>Źródło obrazów</label>
+          <div class="source-buttons">
+            <button id="addFilesBtn">Dodaj obrazy (z dysku)</button>
+            <button id="loadFromGitHubBtn">Wczytaj z GitHub (folder images)</button>
+          </div>
           <p class="hint-small">
-            Wybierz folder na dysku, który traktujesz jak „images”. Pliki nie są wysyłane nigdzie – wszystko działa lokalnie w przeglądarce.
+            „Dodaj obrazy” otwiera wybór plików z dysku.  
+            „Wczytaj z GitHub” pobierze listę plików z folderu podanego poniżej (właściciel, repo, gałąź, folder).
           </p>
         </div>
+
+        <input type="file" id="imageFiles" multiple accept="image/*" style="display:none" />
 
         <div id="gallery" class="gallery"></div>
       </section>
@@ -112,25 +129,3 @@
         </div>
 
         <div class="control-group">
-          <label for="ghFolder">Folder w repo (np. images)</label>
-          <input type="text" id="ghFolder" value="images" />
-        </div>
-
-        <div class="control-group">
-          <button id="uploadSelectedBtn">Wrzuć wybrany obraz do GitHub</button>
-          <p class="hint-small">
-            Wysyła aktualnie wybrany obraz do folderu `images/` w wskazanym repo.
-          </p>
-        </div>
-      </section>
-    </aside>
-
-    <!-- Główny podgląd -->
-    <main class="main">
-      <canvas id="glcanvas"></canvas>
-    </main>
-  </div>
-
-  <script type="module" src="main.js"></script>
-</body>
-</html>
