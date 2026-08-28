@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <title>Gaussian Floater Generator</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="layout">
+    <canvas id="glcanvas"></canvas>
+
+    <aside class="controls">
+      <h2>Konfiguracja</h2>
+
+      <div class="control-group">
+        <label for="shapeType">Kształt</label>
+        <select id="shapeType">
+          <option value="circle">Koło</option>
+          <option value="square">Kwadrat</option>
+          <option value="star">Gwiazda</option>
+          <option value="noise">Szum (noise)</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label for="rotationSpeed">Prędkość obrotu</label>
+        <input type="range" id="rotationSpeed" min="0" max="2" step="0.01" value="0.5" />
+      </div>
+
+      <div class="control-group">
+        <label for="blurAmount">Siła blurra (Gaussian)</label>
+        <input type="range" id="blurAmount" min="0" max="0.2" step="0.001" value="0.03" />
+      </div>
+
+      <div class="control-group">
+        <label for="glowStrength">Siła glow</label>
+        <input type="range" id="glowStrength" min="0" max="3" step="0.01" value="1.2" />
+      </div>
+
+      <div class="control-group">
+        <label for="colorR">Kolor – R</label>
+        <input type="range" id="colorR" min="0" max="1" step="0.01" value="0.2" />
+      </div>
+      <div class="control-group">
+        <label for="colorG">Kolor – G</label>
+        <input type="range" id="colorG" min="0" max="1" step="0.01" value="0.6" />
+      </div>
+      <div class="control-group">
+        <label for="colorB">Kolor – B</label>
+        <input type="range" id="colorB" min="0" max="1" step="0.01" value="1.0" />
+      </div>
+
+      <div class="control-group">
+        <label for="layersCount">Liczba warstw glow</label>
+        <input type="range" id="layersCount" min="1" max="5" step="1" value="3" />
+      </div>
+
+      <div class="control-group">
+        <label for="breatheEnabled">„Oddychanie” blurra</label>
+        <input type="checkbox" id="breatheEnabled" checked />
+      </div>
+
+      <div class="control-group">
+        <label for="exportBtn">Eksport</label>
+        <button id="exportBtn">Zapisz PNG</button>
+      </div>
+
+      <p class="hint">
+        Wszystkie zmiany są widoczne na żywo. Możesz dowolnie eksperymentować z parametrami.
+      </p>
+    </aside>
+  </div>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>
