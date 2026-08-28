@@ -64,7 +64,7 @@ body {
 
 .app {
   display: grid;
-  grid-template-columns: 360px 1fr;
+  grid-template-columns: 320px 1fr;
   height: calc(100vh - 56px);
 }
 
@@ -147,61 +147,4 @@ body {
   color: #778;
   margin-top: 6px;
   line-height: 1.3;
-}
-
-/* Galeria */
-
-.gallery {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.gallery-item {
-  position: relative;
-  aspect-ratio: 1 / 1;
-  background: #1b1b26;
-  border: 1px solid #2a2a3a;
-  border-radius: 4px;
-  overflow: hidden;
-  cursor: pointer;
-}
-
-.gallery-item img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.gallery-item.selected {
-  outline: 2px solid #6af;
-}
-
-.gallery-item .name {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 4px 6px;
-  font-size: 0.65rem;
-  color: #e8e8f0;
-  background: rgba(0, 0, 0, 0.6);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Przyciski źródła obrazów */
-
-.source-buttons {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.source-buttons button {
-  flex: 1 1 auto;
-  min-width: 140px;
 }
