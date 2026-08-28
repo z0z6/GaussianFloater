@@ -1,7 +1,7 @@
 precision highp float;
 
 uniform sampler2D u_texture;
-uniform vec2 u_texel; // 1.0 / rozmiar tekstury
+uniform vec2 u_texel;
 uniform float u_sigma;
 uniform bool u_horizontal;
 
