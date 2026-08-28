@@ -31,16 +31,27 @@ let imageTex = null;
 let imageWidth = 0;
 let imageHeight = 0;
 
-let baseTex = null;
-let baseFb = null;
+// Framebuffer i tekstury do renderowania w pełnej rozdzielczości obrazu
+let fullresBaseTex = null;
+let fullresBaseFb = null;
+const fullresGlowTex = [];
+const fullresGlowFb = [];
+let fullresTempTex1 = null;
+let fullresTempFb1 = null;
+let fullresTempTex2 = null;
+let fullresTempFb2 = null;
 
-const glowTex = [];
-const glowFb = [];
+// Tekstura i FB do podglądu (canvas)
+let previewBaseTex = null;
+let previewBaseFb = null;
+const previewGlowTex = [];
+const previewGlowFb = [];
+let previewTempTex1 = null;
+let previewTempFb1 = null;
+let previewTempTex2 = null;
+let previewTempFb2 = null;
 
-let tempTex1 = null;
-let tempFb1 = null;
-let tempTex2 = null;
-let tempFb2 = null;
+let previewDirty = true; // czy trzeba przerysować podgląd
 
 function getParams() {
   return {
@@ -97,70 +108,89 @@ gl.enableVertexAttribArray(aUv);
 gl.vertexAttribPointer(aPosition, 2, gl.FLOAT, false, 8, 0);
 gl.vertexAttribPointer(aUv, 2, gl.FLOAT, false, 8, 4);
 
-// --- Zasoby ---
+// --- Pomocnicze funkcje do tworzenia zasobów ---
 
-function resizeResources() {
-  const dpr = window.devicePixelRatio || 1;
-  const width = Math.floor(canvas.clientWidth * dpr);
-  const height = Math.floor(canvas.clientHeight * dpr);
+function createFullresResources() {
+  if (!imageTex) return;
 
-  canvas.width = width;
-  canvas.height = height;
+  const w = imageWidth;
+  const h = imageHeight;
 
-  if (baseTex) gl.deleteTexture(baseTex);
-  if (baseFb) gl.deleteFramebuffer(baseFb);
-  baseTex = createTexture(gl, width, height);
-  baseFb = createFramebuffer(gl, baseTex);
+  if (fullresBaseTex) {
+    gl.deleteTexture(fullresBaseTex);
+    gl.deleteFramebuffer(fullresBaseFb);
+  }
+  fullresBaseTex = createTexture(gl, w, h);
+  fullresBaseFb = createFramebuffer(gl, fullresBaseTex);
 
   for (let i = 0; i < 5; i++) {
-    if (glowTex[i]) gl.deleteTexture(glowTex[i]);
-    if (glowFb[i]) gl.deleteFramebuffer(glowFb[i]);
-    glowTex[i] = createTexture(gl, width, height);
-    glowFb[i] = createFramebuffer(gl, glowTex[i]);
+    if (fullresGlowTex[i]) {
+      gl.deleteTexture(fullresGlowTex[i]);
+      gl.deleteFramebuffer(fullresGlowFb[i]);
+    }
+    fullresGlowTex[i] = createTexture(gl, w, h);
+    fullresGlowFb[i] = createFramebuffer(gl, fullresGlowTex[i]);
   }
 
-  if (tempTex1) gl.deleteTexture(tempTex1);
-  if (tempFb1) gl.deleteFramebuffer(tempFb1);
-  if (tempTex2) gl.deleteTexture(tempTex2);
-  if (tempFb2) gl.deleteFramebuffer(tempFb2);
-
-  tempTex1 = createTexture(gl, width, height);
-  tempFb1 = createFramebuffer(gl, tempTex1);
-  tempTex2 = createTexture(gl, width, height);
-  tempFb2 = createFramebuffer(gl, tempTex2);
+  if (fullresTempTex1) {
+    gl.deleteTexture(fullresTempTex1);
+    gl.deleteFramebuffer(fullresTempFb1);
+  }
+  if (fullresTempTex2) {
+    gl.deleteTexture(fullresTempTex2);
+    gl.deleteFramebuffer(fullresTempFb2);
+  }
+  fullresTempTex1 = createTexture(gl, w, h);
+  fullresTempFb1 = createFramebuffer(gl, fullresTempTex1);
+  fullresTempTex2 = createTexture(gl, w, h);
+  fullresTempFb2 = createFramebuffer(gl, fullresTempTex2);
 }
 
-// --- Wczytywanie obrazu ---
+function createPreviewResources() {
+  const dpr = window.devicePixelRatio || 1;
+  const w = Math.floor(canvas.clientWidth * dpr);
+  const h = Math.floor(canvas.clientHeight * dpr);
 
-loadImageBtn.addEventListener("click", () => {
-  imageFileInput.click();
-});
+  canvas.width = w;
+  canvas.height = h;
 
-imageFileInput.addEventListener("change", async (e) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
+  if (previewBaseTex) {
+    gl.deleteTexture(previewBaseTex);
+    gl.deleteFramebuffer(previewBaseFb);
+  }
+  previewBaseTex = createTexture(gl, w, h);
+  previewBaseFb = createFramebuffer(gl, previewBaseTex);
 
-  const img = new Image();
-  img.src = URL.createObjectURL(file);
-  await img.decode();
+  for (let i = 0; i < 5; i++) {
+    if (previewGlowTex[i]) {
+      gl.deleteTexture(previewGlowTex[i]);
+      gl.deleteFramebuffer(previewGlowFb[i]);
+    }
+    previewGlowTex[i] = createTexture(gl, w, h);
+    previewGlowFb[i] = createFramebuffer(gl, previewGlowTex[i]);
+  }
 
-  if (imageTex) gl.deleteTexture(imageTex);
-  imageTex = createTextureFromImage(gl, img);
-  imageWidth = img.width;
-  imageHeight = img.height;
+  if (previewTempTex1) {
+    gl.deleteTexture(previewTempTex1);
+    gl.deleteFramebuffer(previewTempFb1);
+  }
+  if (previewTempTex2) {
+    gl.deleteTexture(previewTempTex2);
+    gl.deleteFramebuffer(previewTempFb2);
+  }
+  previewTempTex1 = createTexture(gl, w, h);
+  previewTempFb1 = createFramebuffer(gl, previewTempTex1);
+  previewTempTex2 = createTexture(gl, w, h);
+  previewTempFb2 = createFramebuffer(gl, previewTempTex2);
 
-  // Reset inputu
-  imageFileInput.value = "";
-});
+  previewDirty = true;
+}
 
 // --- Renderowanie bazowe (obraz + koloryzacja) ---
 
-function renderBase(params) {
-  if (!imageTex) return;
-
-  // Używamy framebuffera o rozmiarze obrazu
+function renderBaseToTarget(params, baseFb, width, height) {
   gl.bindFramebuffer(gl.FRAMEBUFFER, baseFb);
-  gl.viewport(0, 0, canvas.width, canvas.height);
+  gl.viewport(0, 0, width, height);
   gl.clearColor(0.02, 0.02, 0.04, 1.0);
   gl.clear(gl.COLOR_BUFFER_BIT);
 
@@ -172,7 +202,7 @@ function renderBase(params) {
   gl.uniform1i(uImage, 0);
 
   setUniforms(gl, programBase, {
-    u_resolution: [canvas.width, canvas.height],
+    u_resolution: [width, height],
     u_time: 0,
     u_rotationSpeed: 0,
     u_color: params.color,
@@ -186,9 +216,9 @@ function renderBase(params) {
 
 // --- 2-pass blur ---
 
-function renderBlurPass(inputTex, outputFb, sigma, horizontal) {
+function renderBlurPass(inputTex, outputFb, sigma, horizontal, width, height) {
   gl.bindFramebuffer(gl.FRAMEBUFFER, outputFb);
-  gl.viewport(0, 0, canvas.width, canvas.height);
+  gl.viewport(0, 0, width, height);
 
   gl.useProgram(programBlur);
 
@@ -198,7 +228,7 @@ function renderBlurPass(inputTex, outputFb, sigma, horizontal) {
   gl.uniform1i(uTexture, 0);
 
   setUniforms(gl, programBlur, {
-    u_texel: [1.0 / canvas.width, 1.0 / canvas.height],
+    u_texel: [1.0 / width, 1.0 / height],
     u_sigma: sigma,
     u_horizontal: horizontal,
   });
@@ -207,19 +237,36 @@ function renderBlurPass(inputTex, outputFb, sigma, horizontal) {
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 }
 
-function renderGlowLayer(layerIndex, params) {
-  const sigmaBase = params.blurAmount;
-  const sigma = sigmaBase * (layerIndex + 1);
+function renderGlowLayers(params, baseTex, glowFbs, tempFb1, width, height) {
+  for (let i = 0; i < params.layersCount; i++) {
+    const sigmaBase = params.blurAmount;
+    const sigma = sigmaBase * (i + 1);
 
-  renderBlurPass(baseTex, tempFb1, sigma, true);
-  renderBlurPass(tempTex1, glowFb[layerIndex], sigma, false);
+    // H-pass: baseTex -> temp
+    renderBlurPass(baseTex, tempFb1, sigma, true, width, height);
+    // V-pass: temp -> glow[i]
+    renderBlurPass(
+      tempFb1,
+      glowFbs[i],
+      sigma,
+      false,
+      width,
+      height
+    );
+  }
 }
 
 // --- Kompozycja ---
 
-function renderCompose(params) {
+function renderComposeToScreen(
+  params,
+  baseTex,
+  glowTexArray,
+  screenWidth,
+  screenHeight
+) {
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-  gl.viewport(0, 0, canvas.width, canvas.height);
+  gl.viewport(0, 0, screenWidth, screenHeight);
   gl.clearColor(0.02, 0.02, 0.04, 1.0);
   gl.clear(gl.COLOR_BUFFER_BIT);
 
@@ -239,7 +286,7 @@ function renderCompose(params) {
     if (i === 0) {
       gl.bindTexture(gl.TEXTURE_2D, baseTex);
     } else if (i <= params.layersCount) {
-      gl.bindTexture(gl.TEXTURE_2D, glowTex[i - 1]);
+      gl.bindTexture(gl.TEXTURE_2D, glowTexArray[i - 1]);
     } else {
       gl.bindTexture(gl.TEXTURE_2D, baseTex);
     }
@@ -256,50 +303,223 @@ function renderCompose(params) {
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 }
 
-// --- Pętla renderowania ---
+// --- Podgląd w czasie rzeczywistym ---
 
-function render() {
+function renderPreview() {
   if (!imageTex) {
-    // Brak obrazu – czyścimy ekran
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.clearColor(0.02, 0.02, 0.04, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT);
-  } else {
-    const params = getParams();
-
-    renderBase(params);
-
-    for (let i = 0; i < params.layersCount; i++) {
-      renderGlowLayer(i, params);
-    }
-
-    renderCompose(params);
+    return;
   }
 
-  requestAnimationFrame(render);
+  const params = getParams();
+  const w = canvas.width;
+  const h = canvas.height;
+
+  // 1. Bazowy obraz do previewBaseTex
+  renderBaseToTarget(params, previewBaseFb, w, h);
+
+  // 2. Warstwy glow
+  renderGlowLayers(params, previewBaseTex, previewGlowFb, previewTempFb1, w, h);
+
+  // 3. Kompozycja na ekran
+  renderComposeToScreen(params, previewBaseTex, previewGlowTex, w, h);
 }
 
-function resize() {
-  resizeResources();
+// --- Renderowanie full-res (do zapisu) ---
+
+function renderFullres(params) {
+  if (!imageTex) return;
+
+  const w = imageWidth;
+  const h = imageHeight;
+
+  // 1. Bazowy obraz do fullresBaseTex
+  renderBaseToTarget(params, fullresBaseFb, w, h);
+
+  // 2. Warstwy glow
+  renderGlowLayers(
+    params,
+    fullresBaseTex,
+    fullresGlowFb,
+    fullresTempFb1,
+    w,
+    h
+  );
+
+  // 3. Kompozycja – tym razem nie na ekran, ale do fullresBaseTex
+  //    Zamiast modyfikować shader-compose, użyjemy triku:
+  //    - ustawiamy framebuffer na fullresBaseFb,
+  //    - jako u_base dajemy fullresBaseTex (przed kompozycją),
+  //    - jako glow dajemy fullresGlowTex,
+  //    - wynik zapisujemy z powrotem do fullresBaseTex (read/write z tej samej tekstury w jednym passie jest problematyczne),
+  //    dlatego lepiej zrobić osobny framebuffer "fullresOutFb" i do niego renderować kompozycję.
+  //
+  // Dla uproszczenia: zrobimy osobny framebuffer "fullresOut".
+
+  const outTex = createTexture(gl, w, h);
+  const outFb = createFramebuffer(gl, outTex);
+
+  gl.bindFramebuffer(gl.FRAMEBUFFER, outFb);
+  gl.viewport(0, 0, w, h);
+  gl.clearColor(0.02, 0.02, 0.04, 1.0);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+
+  gl.useProgram(programCompose);
+
+  const texNames = [
+    "u_base",
+    "u_glow1",
+    "u_glow2",
+    "u_glow3",
+    "u_glow4",
+    "u_glow5",
+  ];
+  texNames.forEach((name, i) => {
+    const loc = gl.getUniformLocation(programCompose, name);
+    gl.activeTexture(gl.TEXTURE0 + i);
+    if (i === 0) {
+      gl.bindTexture(gl.TEXTURE_2D, fullresBaseTex);
+    } else if (i <= params.layersCount) {
+      gl.bindTexture(gl.TEXTURE_2D, fullresGlowTex[i - 1]);
+    } else {
+      gl.bindTexture(gl.TEXTURE_2D, fullresBaseTex);
+    }
+    gl.uniform1i(loc, i);
+  });
+
+  setUniforms(gl, programCompose, {
+    u_glowStrength: params.glowStrength,
+    u_layersCount: params.layersCount,
+    u_breatheEnabled: params.breatheEnabled,
+    u_time: 0,
+  });
+
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+  // Teraz odczytujemy z outTex do canvasu (w rozdzielczości obrazu)
+  // i zapisujemy jako PNG.
+
+  // Kopiujemy zawartość outTex na canvas o rozmiarze obrazu
+  const tempCanvas = document.createElement("canvas");
+  tempCanvas.width = w;
+  tempCanvas.height = h;
+  const tempGl = tempCanvas.getContext("2d");
+
+  // Odczyt pikseli z WebGL
+  const pixels = new Uint8Array(w * h * 4);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, outFb);
+  gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+  // WebGL ma origin w lewym dolnym rogu, Canvas2D w lewym górnym -> odwracamy Y
+  const imageData = tempGl.createImageData(w, h);
+  for (let y = 0; y < h; y++) {
+    const srcRow = y * w * 4;
+    const dstRow = (h - 1 - y) * w * 4;
+    for (let x = 0; x < w * 4; x++) {
+      imageData.data[dstRow + x] = pixels[srcRow + x];
+    }
+  }
+
+  tempGl.putImageData(imageData, 0, 0);
+
+  // Zapis
+  const link = document.createElement("a");
+  link.download = "gaussian-floater-result.png";
+  link.href = tempCanvas.toDataURL("image/png");
+  link.click();
+
+  // Sprzątamy tymczasowe zasoby
+  gl.deleteTexture(outTex);
+  gl.deleteFramebuffer(outFb);
 }
 
-window.addEventListener("resize", resize);
-resize();
-render();
+// --- Obsługa zdarzeń ---
 
-// --- Zapis przetworzonego obrazu ---
+loadImageBtn.addEventListener("click", () => {
+  imageFileInput.click();
+});
+
+imageFileInput.addEventListener("change", async (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  const img = new Image();
+  img.src = URL.createObjectURL(file);
+  await img.decode();
+
+  if (imageTex) gl.deleteTexture(imageTex);
+  imageTex = createTextureFromImage(gl, img);
+  imageWidth = img.width;
+  imageHeight = img.height;
+
+  // Przygotuj zasoby full-res
+  createFullresResources();
+
+  // Przygotuj zasoby podglądu
+  createPreviewResources();
+
+  imageFileInput.value = "";
+});
 
 saveProcessedBtn.addEventListener("click", () => {
   if (!imageTex) {
     alert("Najpierw wczytaj obraz.");
     return;
   }
-
-  // Renderujemy raz do canvasu (już jest renderowane na bieżąco)
-  // i zapisujemy zawartość canvasu jako PNG.
-  const link = document.createElement("a");
-  link.download = "gaussian-floater-result.png";
-  link.href = canvas.toDataURL("image/png");
-  link.click();
+  const params = getParams();
+  renderFullres(params);
 });
+
+// UI zmiany parametrów -> odśwież podgląd
+[
+  blurAmountEl,
+  glowStrengthEl,
+  colorREl,
+  colorGEl,
+  colorBEl,
+  layersCountEl,
+  breatheEnabledEl,
+].forEach((el) => {
+  el.addEventListener("input", () => {
+    previewDirty = true;
+  });
+});
+
+// --- Pętla renderowania (tylko podgląd) ---
+
+function render() {
+  if (!imageTex) {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.clearColor(0.02, 0.02, 0.04, 1.0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+  } else {
+    if (previewDirty) {
+      renderPreview();
+      previewDirty = false;
+    }
+  }
+
+  requestAnimationFrame(render);
+}
+
+function resize() {
+  if (imageTex) {
+    createPreviewResources();
+  } else {
+    const dpr = window.devicePixelRatio || 1;
+    const w = Math.floor(canvas.clientWidth * dpr);
+    const h = Math.floor(canvas.clientHeight * dpr);
+    canvas.width = w;
+    canvas.height = h;
+  }
+}
+
+window.addEventListener("resize", resize);
+resize();
+render();
