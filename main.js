@@ -4,13 +4,17 @@ import {
   createBuffer,
   createTexture,
   createFramebuffer,
+  createTextureFromImage,
   setUniforms,
 } from "./webgl-helpers.js";
 
 const canvas = document.getElementById("glcanvas");
 const gl = initGL(canvas);
 
-// --- UI ---
+// --- UI: elementy ---
+
+const imageFolderInput = document.getElementById("imageFolder");
+const galleryEl = document.getElementById("gallery");
 
 const shapeTypeEl = document.getElementById("shapeType");
 const rotationSpeedEl = document.getElementById("rotationSpeed");
@@ -23,8 +27,26 @@ const layersCountEl = document.getElementById("layersCount");
 const breatheEnabledEl = document.getElementById("breatheEnabled");
 const exportBtn = document.getElementById("exportBtn");
 
+const ghTokenEl = document.getElementById("ghToken");
+const ghOwnerEl = document.getElementById("ghOwner");
+const ghRepoEl = document.getElementById("ghRepo");
+const ghBranchEl = document.getElementById("ghBranch");
+const ghFolderEl = document.getElementById("ghFolder");
+const uploadSelectedBtn = document.getElementById("uploadSelectedBtn");
+
+// --- Stan ---
+
+let images = []; // { file, name, url, img }
+let selectedIndex = -1;
+
 function getParams() {
-  const shapeMap = { circle: 0, square: 1, star: 2, noise: 3 };
+  const shapeMap = {
+    image: 0,
+    circle: 1,
+    square: 2,
+    star: 3,
+    noise: 4,
+  };
   return {
     shapeType: shapeMap[shapeTypeEl.value],
     rotationSpeed: parseFloat(rotationSpeedEl.value),
@@ -37,6 +59,7 @@ function getParams() {
     ],
     layersCount: parseInt(layersCountEl.value, 10),
     breatheEnabled: breatheEnabledEl.checked,
+    useImage: shapeTypeEl.value === "image" && selectedIndex >= 0,
   };
 }
 
@@ -85,11 +108,11 @@ gl.vertexAttribPointer(aUv, 2, gl.FLOAT, false, 8, 4);
 
 let baseTex = null;
 let baseFb = null;
+let imageTex = null;
 
 const glowTex = [];
 const glowFb = [];
 
-// Pomocnicze tekstury do blurra (H/V)
 let tempTex1 = null;
 let tempFb1 = null;
 let tempTex2 = null;
@@ -103,13 +126,11 @@ function resizeResources() {
   canvas.width = width;
   canvas.height = height;
 
-  // Bazowa tekstura
   if (baseTex) gl.deleteTexture(baseTex);
   if (baseFb) gl.deleteFramebuffer(baseFb);
   baseTex = createTexture(gl, width, height);
   baseFb = createFramebuffer(gl, baseTex);
 
-  // Glow tekstury
   for (let i = 0; i < 5; i++) {
     if (glowTex[i]) gl.deleteTexture(glowTex[i]);
     if (glowFb[i]) gl.deleteFramebuffer(glowFb[i]);
@@ -117,7 +138,6 @@ function resizeResources() {
     glowFb[i] = createFramebuffer(gl, glowTex[i]);
   }
 
-  // Temp tekstury do blurra
   if (tempTex1) gl.deleteTexture(tempTex1);
   if (tempFb1) gl.deleteFramebuffer(tempFb1);
   if (tempTex2) gl.deleteTexture(tempTex2);
@@ -129,7 +149,56 @@ function resizeResources() {
   tempFb2 = createFramebuffer(gl, tempTex2);
 }
 
-// --- Renderowanie bazowego kształtu ---
+// --- Galeria ---
+
+imageFolderInput.addEventListener("change", async (e) => {
+  const files = Array.from(e.target.files || []);
+  const imageFiles = files.filter((f) =>
+    f.type.startsWith("image/")
+  );
+
+  images = [];
+  galleryEl.innerHTML = "";
+
+  for (const file of imageFiles) {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+
+    const item = document.createElement("div");
+    item.className = "gallery-item";
+
+    const imageEl = document.createElement("img");
+    imageEl.src = url;
+    item.appendChild(imageEl);
+
+    const nameEl = document.createElement("div");
+    nameEl.className = "name";
+    nameEl.textContent = file.name;
+    item.appendChild(nameEl);
+
+    item.addEventListener("click", () => {
+      if (selectedIndex >= 0 && images[selectedIndex]) {
+        const prev = galleryEl.children[selectedIndex];
+        if (prev) prev.classList.remove("selected");
+      }
+      selectedIndex = images.length;
+      item.classList.add("selected");
+
+      if (imageTex) gl.deleteTexture(imageTex);
+      imageTex = createTextureFromImage(gl, img);
+
+      shapeTypeEl.value = "image";
+    });
+
+    galleryEl.appendChild(item);
+
+    images.push({ file, name: file.name, url, img });
+  }
+});
+
+// --- Renderowanie bazowe ---
 
 function renderBase(params) {
   gl.bindFramebuffer(gl.FRAMEBUFFER, baseFb);
@@ -139,12 +208,20 @@ function renderBase(params) {
 
   gl.useProgram(programBase);
 
+  if (params.useImage && imageTex) {
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, imageTex);
+    const uImage = gl.getUniformLocation(programBase, "u_image");
+    gl.uniform1i(uImage, 0);
+  }
+
   setUniforms(gl, programBase, {
     u_resolution: [canvas.width, canvas.height],
     u_time: performance.now() / 1000,
     u_rotationSpeed: params.rotationSpeed,
     u_color: params.color,
     u_shapeType: params.shapeType,
+    u_useImage: params.useImage && !!imageTex,
   });
 
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
@@ -175,17 +252,14 @@ function renderBlurPass(inputTex, outputFb, sigma, horizontal) {
 }
 
 function renderGlowLayer(layerIndex, params) {
-  // Każda warstwa glow = osobny 2-pass blur na bazie, z innym sigma
   const sigmaBase = params.blurAmount;
   const sigma = sigmaBase * (layerIndex + 1);
 
-  // Pass 1: poziomy: baseTex -> tempTex1
   renderBlurPass(baseTex, tempFb1, sigma, true);
-  // Pass 2: pionowy: tempTex1 -> glowTex[layerIndex]
   renderBlurPass(tempTex1, glowFb[layerIndex], sigma, false);
 }
 
-// --- Kompozycja końcowa ---
+// --- Kompozycja ---
 
 function renderCompose(params) {
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -195,8 +269,14 @@ function renderCompose(params) {
 
   gl.useProgram(programCompose);
 
-  // Podpinamy tekstury
-  const texNames = ["u_base", "u_glow1", "u_glow2", "u_glow3", "u_glow4", "u_glow5"];
+  const texNames = [
+    "u_base",
+    "u_glow1",
+    "u_glow2",
+    "u_glow3",
+    "u_glow4",
+    "u_glow5",
+  ];
   texNames.forEach((name, i) => {
     const loc = gl.getUniformLocation(programCompose, name);
     gl.activeTexture(gl.TEXTURE0 + i);
@@ -205,7 +285,6 @@ function renderCompose(params) {
     } else if (i <= params.layersCount) {
       gl.bindTexture(gl.TEXTURE_2D, glowTex[i - 1]);
     } else {
-      // nieużywane – podpinamy baseTex jako dummy
       gl.bindTexture(gl.TEXTURE_2D, baseTex);
     }
     gl.uniform1i(loc, i);
@@ -226,20 +305,14 @@ function renderCompose(params) {
 let startTime = performance.now();
 
 function render() {
-  const now = performance.now();
-  const time = (now - startTime) / 1000;
-
   const params = getParams();
 
-  // 1. Render bazowy
   renderBase(params);
 
-  // 2. Warstwy glow
   for (let i = 0; i < params.layersCount; i++) {
     renderGlowLayer(i, params);
   }
 
-  // 3. Kompozycja
   renderCompose(params);
 
   requestAnimationFrame(render);
@@ -260,4 +333,96 @@ exportBtn.addEventListener("click", () => {
   link.download = "gaussian-floater.png";
   link.href = canvas.toDataURL("image/png");
   link.click();
+});
+
+// --- GitHub upload (prosty klient API) ---
+
+async function uploadToGitHub({ token, owner, repo, branch, path, contentBase64 }) {
+  const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+
+  let sha = null;
+  try {
+    const getRes = await fetch(url + `?ref=${branch}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+      },
+    });
+    if (getRes.ok) {
+      const data = await getRes.json();
+      sha = data.sha;
+    }
+  } catch (err) {
+    console.warn("Błąd sprawdzania pliku:", err);
+  }
+
+  const body = {
+    message: "Upload obrazu przez Gaussian Floater UI",
+    content: contentBase64,
+    branch,
+  };
+  if (sha) body.sha = sha;
+
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github+json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`GitHub API error: ${res.status} ${text}`);
+  }
+
+  return res.json();
+}
+
+uploadSelectedBtn.addEventListener("click", async () => {
+  if (selectedIndex < 0 || !images[selectedIndex]) {
+    alert("Wybierz najpierw obraz z galerii.");
+    return;
+  }
+
+  const token = ghTokenEl.value.trim();
+  const owner = ghOwnerEl.value.trim();
+  const repo = ghRepoEl.value.trim();
+  const branch = ghBranchEl.value.trim() || "main";
+  const folder = (ghFolderEl.value.trim() || "images").replace(/\/+$/, "");
+  const file = images[selectedIndex].file;
+
+  if (!token || !owner || !repo) {
+    alert("Wypełnij: token, właściciela i nazwę repo.");
+    return;
+  }
+
+  try {
+    const arrayBuf = await file.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuf);
+    let binary = "";
+    for (let i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    const contentBase64 = btoa(binary);
+
+    const path = `${folder}/${file.name}`;
+
+    const result = await uploadToGitHub({
+      token,
+      owner,
+      repo,
+      branch,
+      path,
+      contentBase64,
+    });
+
+    console.log("Wynik uploadu:", result);
+    alert(`Obraz wysłany:\n${path}\n(w repo ${owner}/${repo}, gałąź ${branch})`);
+  } catch (err) {
+    console.error(err);
+    alert("Błąd wysyłania: " + err.message);
+  }
 });
