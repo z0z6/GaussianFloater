@@ -13,7 +13,9 @@ const gl = initGL(canvas);
 
 // --- UI: elementy ---
 
-const imageFolderInput = document.getElementById("imageFolder");
+const addFilesBtn = document.getElementById("addFilesBtn");
+const loadFromGitHubBtn = document.getElementById("loadFromGitHubBtn");
+const imageFilesInput = document.getElementById("imageFiles");
 const galleryEl = document.getElementById("gallery");
 
 const shapeTypeEl = document.getElementById("shapeType");
@@ -34,10 +36,28 @@ const ghBranchEl = document.getElementById("ghBranch");
 const ghFolderEl = document.getElementById("ghFolder");
 const uploadSelectedBtn = document.getElementById("uploadSelectedBtn");
 
+const savePresetBtn = document.getElementById("savePresetBtn");
+const loadPresetBtn = document.getElementById("loadPresetBtn");
+const resetDefaultsBtn = document.getElementById("resetDefaultsBtn");
+
 // --- Stan ---
 
-let images = []; // { file, name, url, img }
+let images = []; // { file?, name, url, img, fromGitHub?, ghPath? }
 let selectedIndex = -1;
+
+const PRESET_KEY = "gf_preset_v1";
+
+// --- Domyślne wartości ---
+
+const DEFAULTS = {
+  shapeType: "image",
+  rotationSpeed: 0.0,
+  blurAmount: 0.03,
+  glowStrength: 1.2,
+  color: [0.2, 0.6, 1.0],
+  layersCount: 3,
+  breatheEnabled: true,
+};
 
 function getParams() {
   const shapeMap = {
@@ -62,6 +82,67 @@ function getParams() {
     useImage: shapeTypeEl.value === "image" && selectedIndex >= 0,
   };
 }
+
+function readUI() {
+  return {
+    shapeType: shapeTypeEl.value,
+    rotationSpeed: parseFloat(rotationSpeedEl.value),
+    blurAmount: parseFloat(blurAmountEl.value),
+    glowStrength: parseFloat(glowStrengthEl.value),
+    color: [
+      parseFloat(colorREl.value),
+      parseFloat(colorGEl.value),
+      parseFloat(colorBEl.value),
+    ],
+    layersCount: parseInt(layersCountEl.value, 10),
+    breatheEnabled: breatheEnabledEl.checked,
+  };
+}
+
+function writeUI(preset) {
+  shapeTypeEl.value = preset.shapeType ?? DEFAULTS.shapeType;
+  rotationSpeedEl.value = preset.rotationSpeed ?? DEFAULTS.rotationSpeed;
+  blurAmountEl.value = preset.blurAmount ?? DEFAULTS.blurAmount;
+  glowStrengthEl.value = preset.glowStrength ?? DEFAULTS.glowStrength;
+
+  const [r, g, b] = preset.color ?? DEFAULTS.color;
+  colorREl.value = r;
+  colorGEl.value = g;
+  colorBEl.value = b;
+
+  layersCountEl.value = preset.layersCount ?? DEFAULTS.layersCount;
+  breatheEnabledEl.checked =
+    preset.breatheEnabled !== undefined
+      ? preset.breatheEnabled
+      : DEFAULTS.breatheEnabled;
+}
+
+// --- Presety (localStorage) ---
+
+savePresetBtn.addEventListener("click", () => {
+  const preset = readUI();
+  localStorage.setItem(PRESET_KEY, JSON.stringify(preset));
+  alert("Preset zapisany w przeglądarce.");
+});
+
+loadPresetBtn.addEventListener("click", () => {
+  const raw = localStorage.getItem(PRESET_KEY);
+  if (!raw) {
+    alert("Brak zapisanego presetu.");
+    return;
+  }
+  try {
+    const preset = JSON.parse(raw);
+    writeUI(preset);
+  } catch (err) {
+    console.error(err);
+    alert("Błąd wczytywania presetu.");
+  }
+});
+
+resetDefaultsBtn.addEventListener("click", () => {
+  writeUI(DEFAULTS);
+});
 
 // --- Shader sources ---
 
@@ -149,42 +230,73 @@ function resizeResources() {
   tempFb2 = createFramebuffer(gl, tempTex2);
 }
 
-// --- Galeria ---
+// --- Galeria – dodawanie plików z dysku ---
 
-imageFolderInput.addEventListener("change", async (e) => {
+addFilesBtn.addEventListener("click", () => {
+  imageFilesInput.click();
+});
+
+imageFilesInput.addEventListener("change", async (e) => {
   const files = Array.from(e.target.files || []);
-  const imageFiles = files.filter((f) =>
-    f.type.startsWith("image/")
+  const imageFiles = files.filter((f) => f.type.startsWith("image/"));
+
+  await addImagesToGallery(
+    imageFiles.map((file) => ({
+      file,
+      name: file.name,
+      fromGitHub: false,
+    }))
   );
 
-  images = [];
-  galleryEl.innerHTML = "";
+  // Reset inputu, żeby można było wybrać te same pliki ponownie
+  imageFilesInput.value = "";
+});
 
-  for (const file of imageFiles) {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.src = url;
-    await img.decode();
+async function addImagesToGallery(items) {
+  // items: { file?, name, fromGitHub, ghPath?, rawUrl? }
+  for (const item of items) {
+    let img;
+    let url;
 
-    const item = document.createElement("div");
-    item.className = "gallery-item";
+    if (item.fromGitHub) {
+      url = item.rawUrl;
+      img = new Image();
+      img.crossOrigin = "anonymous";
+      img.src = url;
+    } else {
+      url = URL.createObjectURL(item.file);
+      img = new Image();
+      img.src = url;
+    }
+
+    try {
+      await img.decode();
+    } catch (err) {
+      console.warn("Nie udało się załadować obrazu:", item.name, err);
+      continue;
+    }
+
+    const index = images.length;
+
+    const itemEl = document.createElement("div");
+    itemEl.className = "gallery-item";
 
     const imageEl = document.createElement("img");
     imageEl.src = url;
-    item.appendChild(imageEl);
+    itemEl.appendChild(imageEl);
 
     const nameEl = document.createElement("div");
     nameEl.className = "name";
-    nameEl.textContent = file.name;
-    item.appendChild(nameEl);
+    nameEl.textContent = item.name;
+    itemEl.appendChild(nameEl);
 
-    item.addEventListener("click", () => {
+    itemEl.addEventListener("click", () => {
       if (selectedIndex >= 0 && images[selectedIndex]) {
         const prev = galleryEl.children[selectedIndex];
         if (prev) prev.classList.remove("selected");
       }
-      selectedIndex = images.length;
-      item.classList.add("selected");
+      selectedIndex = index;
+      itemEl.classList.add("selected");
 
       if (imageTex) gl.deleteTexture(imageTex);
       imageTex = createTextureFromImage(gl, img);
@@ -192,9 +304,76 @@ imageFolderInput.addEventListener("change", async (e) => {
       shapeTypeEl.value = "image";
     });
 
-    galleryEl.appendChild(item);
+    galleryEl.appendChild(itemEl);
 
-    images.push({ file, name: file.name, url, img });
+    images.push({
+      file: item.file || null,
+      name: item.name,
+      url,
+      img,
+      fromGitHub: !!item.fromGitHub,
+      ghPath: item.ghPath || null,
+    });
+  }
+}
+
+// --- Galeria – wczytywanie z GitHub API ---
+
+loadFromGitHubBtn.addEventListener("click", async () => {
+  const token = ghTokenEl.value.trim();
+  const owner = ghOwnerEl.value.trim();
+  const repo = ghRepoEl.value.trim();
+  const branch = ghBranchEl.value.trim() || "main";
+  const folder = (ghFolderEl.value.trim() || "images").replace(/\/+$/, "");
+
+  if (!owner || !repo) {
+    alert("Podaj właściciela i nazwę repozytorium.");
+    return;
+  }
+
+  try {
+    const url = `https://api.github.com/repos/${owner}/${repo}/contents/${folder}?ref=${branch}`;
+
+    const headers = {
+      Accept: "application/vnd.github+json",
+    };
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    const res = await fetch(url, { headers });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`GitHub API: ${res.status} ${text}`);
+    }
+
+    const data = await res.json();
+    if (!Array.isArray(data)) {
+      throw new Error("Odpowiedź GitHub nie jest listą plików.");
+    }
+
+    const imageItems = data
+      .filter((f) => f.type === "file" && /(\.png|\.jpg|\.jpeg|\.gif|\.webp)$/i.test(f.name))
+      .map((f) => {
+        const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${folder}/${f.name}`;
+        return {
+          file: null,
+          name: f.name,
+          fromGitHub: true,
+          ghPath: f.path,
+          rawUrl,
+        };
+      });
+
+    if (imageItems.length === 0) {
+      alert("Brak plików graficznych w tym folderze.");
+      return;
+    }
+
+    await addImagesToGallery(imageItems);
+  } catch (err) {
+    console.error(err);
+    alert("Błąd wczytywania z GitHub: " + err.message);
   }
 });
 
@@ -337,7 +516,14 @@ exportBtn.addEventListener("click", () => {
 
 // --- GitHub upload (prosty klient API) ---
 
-async function uploadToGitHub({ token, owner, repo, branch, path, contentBase64 }) {
+async function uploadToGitHub({
+  token,
+  owner,
+  repo,
+  branch,
+  path,
+  contentBase64,
+}) {
   const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
 
   let sha = null;
@@ -392,12 +578,21 @@ uploadSelectedBtn.addEventListener("click", async () => {
   const repo = ghRepoEl.value.trim();
   const branch = ghBranchEl.value.trim() || "main";
   const folder = (ghFolderEl.value.trim() || "images").replace(/\/+$/, "");
-  const file = images[selectedIndex].file;
+  const entry = images[selectedIndex];
 
   if (!token || !owner || !repo) {
     alert("Wypełnij: token, właściciela i nazwę repo.");
     return;
   }
+
+  if (!entry.file) {
+    alert(
+      "Aktualnie wysyłanie działa tylko dla obrazów dodanych z dysku (przez «Dodaj obrazy»)."
+    );
+    return;
+  }
+
+  const file = entry.file;
 
   try {
     const arrayBuf = await file.arrayBuffer();
