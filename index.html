@@ -2,7 +2,7 @@
 <html lang="pl">
 <head>
   <meta charset="UTF-8" />
-  <title>Gaussian Floater – Moduł Użytkownika</title>
+  <title>Gaussian Floater – Edytor</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -12,52 +12,15 @@
       <span class="title">Gaussian Floater</span>
     </div>
     <div class="actions">
-      <button id="savePresetBtn">Zapisz preset</button>
-      <button id="loadPresetBtn">Wczytaj preset</button>
-      <button id="resetDefaultsBtn">Reset do domyślnych</button>
+      <button id="loadImageBtn">Wczytaj obraz</button>
+      <button id="saveProcessedBtn">Zapisz przetworzony obraz</button>
     </div>
   </header>
 
   <div class="app">
     <aside class="sidebar">
       <section class="panel">
-        <h2>Galeria obrazów</h2>
-
-        <div class="control-group">
-          <label>Źródło obrazów</label>
-          <div class="source-buttons">
-            <button id="addFilesBtn">Dodaj obrazy (z dysku)</button>
-            <button id="loadFromGitHubBtn">Wczytaj z GitHub (folder images)</button>
-          </div>
-          <p class="hint-small">
-            „Dodaj obrazy” otwiera wybór plików z dysku.  
-            „Wczytaj z GitHub” pobierze listę plików z folderu podanego poniżej (właściciel, repo, gałąź, folder).
-          </p>
-        </div>
-
-        <input type="file" id="imageFiles" multiple accept="image/*" style="display:none" />
-
-        <div id="gallery" class="gallery"></div>
-      </section>
-
-      <section class="panel">
-        <h2>Konfiguracja filtrów</h2>
-
-        <div class="control-group">
-          <label for="shapeType">Kształt bazowy (dla generatywnych)</label>
-          <select id="shapeType">
-            <option value="image">Własny obraz</option>
-            <option value="circle">Koło</option>
-            <option value="square">Kwadrat</option>
-            <option value="star">Gwiazda</option>
-            <option value="noise">Szum (noise)</option>
-          </select>
-        </div>
-
-        <div class="control-group">
-          <label for="rotationSpeed">Prędkość obrotu</label>
-          <input type="range" id="rotationSpeed" min="0" max="2" step="0.01" value="0.0" />
-        </div>
+        <h2>Filtry</h2>
 
         <div class="control-group">
           <label for="blurAmount">Siła blurra (Gaussian)</label>
@@ -92,40 +55,25 @@
           <input type="checkbox" id="breatheEnabled" checked />
         </div>
 
-        <div class="control-group">
-          <label for="exportBtn">Eksport</label>
-          <button id="exportBtn">Zapisz PNG</button>
-        </div>
-
         <p class="hint">
-          Zmiany są widoczne na żywo. Gdy wybierzesz „Własny obraz”, używany jest obraz z galerii.
+          Wczytaj obraz, dostosuj parametry i zapisz wynik na dysku.
         </p>
       </section>
 
       <section class="panel">
-        <h2>GitHub (opcjonalnie)</h2>
+        <h2>Informacje</h2>
+        <p class="hint">
+          Przetwarzanie odbywa się lokalnie w przeglądarce. Żaden obraz nie jest wysyłany na serwer.
+        </p>
+      </section>
+    </aside>
 
-        <div class="control-group">
-          <label for="ghToken">Token GitHub (PAT)</label>
-          <input type="password" id="ghToken" placeholder="ghp_..." />
-          <p class="hint-small">
-            Token z uprawnieniami do repo (np. `repo`). Przechowywany tylko w sesji.
-          </p>
-        </div>
+    <main class="main">
+      <canvas id="glcanvas"></canvas>
+    </main>
+  </div>
 
-        <div class="control-group">
-          <label for="ghOwner">Właściciel repo</label>
-          <input type="text" id="ghOwner" placeholder="twoj-nick" />
-        </div>
-
-        <div class="control-group">
-          <label for="ghRepo">Nazwa repo</label>
-          <input type="text" id="ghRepo" placeholder="twoje-repo" />
-        </div>
-
-        <div class="control-group">
-          <label for="ghBranch">Gałąź</label>
-          <input type="text" id="ghBranch" value="main" />
-        </div>
-
-        <div class="control-group">
+  <input type="file" id="imageFileInput" accept="image/*" style="display:none" />
+  <script type="module" src="main.js"></script>
+</body>
+</html>
