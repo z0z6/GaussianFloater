@@ -18,7 +18,6 @@ void main() {
   vec3 base = texture2D(u_base, v_uv).rgb;
 
   vec3 glow = vec3(0.0);
-  float t = u_time;
 
   float w1 = 1.0;
   float w2 = 0.7;
@@ -32,7 +31,7 @@ void main() {
   if (u_layersCount >= 4) glow += texture2D(u_glow4, v_uv).rgb * w4;
   if (u_layersCount >= 5) glow += texture2D(u_glow5, v_uv).rgb * w5;
 
-  float breathe = u_breatheEnabled ? (0.85 + 0.15 * sin(t * 1.2)) : 1.0;
+  float breathe = u_breatheEnabled ? (0.85 + 0.15 * sin(u_time * 1.2)) : 1.0;
   glow *= u_glowStrength * breathe;
 
   vec3 finalColor = base + glow;
