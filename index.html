@@ -23,8 +23,8 @@
         <h2>Filtry</h2>
 
         <div class="control-group">
-          <label for="blurAmount">Siła blurra (Gaussian)</label>
-          <input type="range" id="blurAmount" min="0" max="0.2" step="0.001" value="0.03" />
+          <label for="blurAmount">Siła blurra (Gaussian, w pikselach)</label>
+          <input type="range" id="blurAmount" min="0" max="5" step="0.1" value="1.5" />
         </div>
 
         <div class="control-group">
@@ -34,11 +34,11 @@
 
         <div class="control-group">
           <label for="colorR">Kolor – R</label>
-          <input type="range" id="colorR" min="0" max="1" step="0.01" value="0.2" />
+          <input type="range" id="colorR" min="0" max="1" step="0.01" value="1.0" />
         </div>
         <div class="control-group">
           <label for="colorG">Kolor – G</label>
-          <input type="range" id="colorG" min="0" max="1" step="0.01" value="0.6" />
+          <input type="range" id="colorG" min="0" max="1" step="0.01" value="1.0" />
         </div>
         <div class="control-group">
           <label for="colorB">Kolor – B</label>
@@ -51,7 +51,7 @@
         </div>
 
         <div class="control-group">
-          <label for="breatheEnabled">„Oddychanie” blurra</label>
+          <label for="breatheEnabled">„Oddychanie" blurra</label>
           <input type="checkbox" id="breatheEnabled" checked />
         </div>
 
