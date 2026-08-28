@@ -4,7 +4,9 @@ uniform vec2 u_resolution;
 uniform float u_time;
 uniform float u_rotationSpeed;
 uniform vec3 u_color;
-uniform int u_shapeType;
+uniform int u_shapeType; // 0: image, 1: circle, 2: square, 3: star, 4: noise
+uniform sampler2D u_image;
+uniform bool u_useImage;
 
 varying vec2 v_uv;
 
@@ -62,20 +64,27 @@ float shapeNoise(vec2 uv) {
 }
 
 float getShape(vec2 uv) {
-  if (u_shapeType == 0) return shapeCircle(uv);
-  if (u_shapeType == 1) return shapeSquare(uv);
-  if (u_shapeType == 2) return starShape(uv);
-  return shapeNoise(uv);
+  if (u_shapeType == 1) return shapeCircle(uv);
+  if (u_shapeType == 2) return shapeSquare(uv);
+  if (u_shapeType == 3) return starShape(uv);
+  if (u_shapeType == 4) return shapeNoise(uv);
+  return 1.0; // dla image nie używamy tego
 }
 
 void main() {
   float angle = u_time * u_rotationSpeed;
   vec2 rotatedUV = rotateUV(v_uv, angle);
 
-  float s = getShape(rotatedUV);
-  vec3 color = u_color * s;
+  vec3 color;
 
-  // Delikatna winieta
+  if (u_useImage) {
+    vec4 imgColor = texture2D(u_image, rotatedUV);
+    color = imgColor.rgb * u_color;
+  } else {
+    float s = getShape(rotatedUV);
+    color = u_color * s;
+  }
+
   float vignette = smoothstep(0.9, 0.4, length(v_uv - 0.5));
   color *= 0.7 + 0.3 * vignette;
 
