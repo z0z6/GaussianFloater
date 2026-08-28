@@ -10,12 +10,62 @@ body {
   color: #e8e8f0;
   height: 100vh;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  height: 56px;
+  background: #0f0f16;
+  border-bottom: 1px solid #222230;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #6af, #66f);
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  color: #0b0b10;
+  font-size: 0.9rem;
+}
+
+.title {
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.actions button {
+  padding: 6px 10px;
+  background: #1b1b26;
+  color: #e8e8f0;
+  border: 1px solid #2a2a3a;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
 }
 
 .app {
   display: grid;
   grid-template-columns: 360px 1fr;
-  height: 100vh;
+  height: calc(100vh - 56px);
 }
 
 .sidebar {
@@ -141,4 +191,17 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Przyciski źródła obrazów */
+
+.source-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.source-buttons button {
+  flex: 1 1 auto;
+  min-width: 140px;
 }
